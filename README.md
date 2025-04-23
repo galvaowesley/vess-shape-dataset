@@ -15,6 +15,9 @@ This project is inspired by the findings of "IMAGENET-TRAINED CNNS ARE BIASED TO
 - **Matting/Blending:** Smoothly blends vessel and background textures using Gaussian blur to avoid hard transitions.
 - **Flexible Parameters:** Control the complexity, curvature, radius, and number of vessels per image.
 - **Metadata Generation:** Produces metadata for each generated image, including texture sources and class labels.
+- **Grid Generation:** Optionally generates a grid of images for easy visualization and comparison.
+
+![output_sample](/example_imgs/output_sample.png)
 
 ## Example Usage
 
