@@ -6,7 +6,10 @@ from tqdm import tqdm
 import pandas as pd
 from scipy.ndimage import gaussian_filter
 from vessel_geometry import VesselGeometry
-import threading
+import torch
+
+# Set seed for reproducibility
+np.random.seed(42)
 
 
 class VesselShape:
@@ -18,10 +21,10 @@ class VesselShape:
         radius=3,
         num_curves=1,
         extra_space=32,
+        sigma=1.0,
         texture_dir=None,
         annotation_csv=None,
-        crop_size=(256, 256),
-        n_samples=10, 
+        crop_size=(256, 256)
     ):
         """
         Initialize the VesselShape dataset generator.
@@ -37,34 +40,28 @@ class VesselShape:
             annotation_csv (str): Path to the CSV file with texture annotations.
             crop_size (tuple): Size of the crop to be applied to textures.
             n_samples (int): Number of samples in the dataset.
+            sigma (float): Sigma value for Gaussian smoothing of the mask.
         """
+        self.n_control_points = n_control_points
+        self.max_vd = max_vd
+        self.radius = radius
+        self.num_curves = num_curves
         self.image_size = image_size
+        self.extra_space = extra_space
         self.crop_size = crop_size
         self.texture_dir = texture_dir
         self.annotation_csv = annotation_csv
+        self.sigma = sigma
         self.texture_metadata = None
+        
+        
+        
         if annotation_csv is not None:
             self.texture_metadata = pd.read_csv(annotation_csv)
         self.texture_files = [
             f for f in os.listdir(texture_dir) if f.lower().endswith(".jpeg")
         ]
-        self.vessel_geometry = VesselGeometry(
-            image_size, n_control_points, max_vd, radius, num_curves, extra_space
-        )
-        self.n_samples = n_samples
-        self._lock = threading.Lock()
-        self._reset_epoch_state()
-
-    def _reset_epoch_state(self):
-        self._epoch_sample_count = 0
-        self._epoch_indices = np.arange(self.n_samples)
-        np.random.shuffle(self._epoch_indices)
-
-    def reset_epoch(self):
-        """Reseta o estado interno para uma nova época."""
-        with self._lock:
-            self._reset_epoch_state()
-
+        
     def random_crop(self, img, crop_size=(256, 256)):
         """
         Perform a random crop on the input image.
@@ -182,33 +179,51 @@ class VesselShape:
         img_blend = img_blend.astype(np.uint8)
         return img_blend
     
-    def __len__(self):
+    def _sample_param(self, param, is_int=True):
         """
-        Return the number of samples in the dataset.
-
-        Returns:
-            int: Number of samples.
-        """
-        return self.n_samples
-
-    def __getitem__(self, idx):
-        """
-        Generate a synthetic sample for the given index.
-
-        Args:
-            idx (int): Index of the sample.
-
-        Returns:
-            tuple: (img_blend, mask_bin), where img_blend is the synthetic image and mask_bin is the binary mask label.
-        """
-        with self._lock:
-            if self._epoch_sample_count >= self.n_samples:
-                self._epoch_sample_count = 0
-                raise IndexError("Todas as amostras da época já foram geradas.")
-                
-            self._epoch_sample_count += 1
+        Sample a parameter value based on its type.
+        If the parameter is a tuple, it samples from a range defined by the tuple.
+        If the parameter is a single value, it returns that value.
         
-        # TODO: Sortear os valores dos parâmetros das curvas
+        Args:
+            param (int, float, tuple): Parameter to sample from.
+            is_int (bool): If True, samples an integer; otherwise, samples a float.
+        
+        Returns:
+            int, float: Sampled parameter value.
+        """
+        
+        if isinstance(param, tuple):
+            return np.random.randint(*param) if is_int else np.random.uniform(*param)
+
+    
+    # Generation pipeline
+    def generate_vess_shape(self, build_grid=False):
+        """
+        Generate a synthetic image with vessel shapes, baground and foreground textures and its respective segmentation mask. In addition, it returns a dictionary with the parameters used to generate the image and metadata.
+        
+        Args:
+            build_grid (bool): If True, returns a grid with the blended image and the mask.
+        
+        Returns:
+            img_blend (np.ndarray): Blended image with vessel shapes.
+            mask_bin (np.ndarray): Binary mask of the vessel shapes.
+            metadata (dict): Dictionary with metadata about the generated image.
+            grid (np.ndarray): Grid with the blended image and the mask (if build_grid is True).
+        
+        """
+        
+        # Ramdomly generate parameters for the current sample
+        n_control_points = self._sample_param(self.n_control_points, is_int=True)
+        max_vd = self._sample_param(self.max_vd, is_int=False)
+        radius = self._sample_param(self.radius, is_int=True)
+        num_curves = self._sample_param(self.num_curves, is_int=True)
+        random_sigma = self._sample_param(self.sigma, is_int=False) # Random sigma for Gaussian smoothing
+            
+        self.vessel_geometry = VesselGeometry(
+            self.image_size, n_control_points, max_vd, radius, num_curves, self.extra_space
+        )
+        
         mask = self.vessel_geometry.create_curves() # TODO: Passar os parâmetros ao invés de usar os padrões
         fg_img, bg_img, fg_file, bg_file = self.select_textures()
         fg_img = self.validate_image_dimensions(fg_img)
@@ -216,41 +231,78 @@ class VesselShape:
         fg_crop = self.random_crop(fg_img, self.crop_size)
         bg_crop = self.random_crop(bg_img, self.crop_size)
         mask_bin = (mask > 0).astype(np.uint8)
-        random_sigma = np.random.uniform(1, 2)
+        
         img_blend = self.blend(fg_crop, bg_crop, mask_bin, sigma=random_sigma)
-
-        return img_blend, mask_bin
-
-    def generate(self, output_dir=None, grid_dir=None, n_samples=None):
-        """
-        Generate synthetic images in memory without saving to disk.
-
-        Args:
-            output_dir (str, optional): Directory to save outputs (not used).
-            grid_dir (str, optional): If provided, includes a visualization grid in the results.
-            n_samples (int, optional): Number of samples to generate. Defaults to self.n_samples.
-
-        Returns:
-            list: List of dictionaries with generated images and associated information.
-        """
-        if n_samples is None:
-            n_samples = self.n_samples
-        results = []
-        for i in tqdm(range(n_samples), desc="Gerando imagens"):
-            img_blend, mask_bin = self[i]  # reutiliza __getitem__
-            result = {
-                "img_blend": img_blend,
-                "mask_bin": mask_bin,
-            }
-            if grid_dir:
-                # Para visualização, pode-se criar um grid simples
-                grid = np.hstack(
-                    (
-                        img_blend,
-                        np.repeat(mask_bin[..., None] * 255, 3, axis=2),
-                    )
+        
+        metadata = {
+            "foreground_texture": fg_file,
+            "background_texture": bg_file,
+            "mask_shape": mask.shape,
+            "vessel_geometry_params": {
+                "n_control_points": n_control_points,
+                "max_vd": max_vd,
+                "radius": radius,
+                "num_curves": num_curves,
+            },
+        }
+        
+        if build_grid:
+            # Create a grid for visualization
+            grid = np.hstack(
+                (
+                    fg_crop,
+                    bg_crop,
+                    np.repeat(mask_bin[..., None] * 255, 3, axis=2),
+                    img_blend,
                 )
-                result["grid"] = grid
-            results.append(result)
-            
-        return results
+            )
+            return img_blend, mask_bin, metadata, grid
+        else:
+            return img_blend, mask_bin, metadata
+        
+        
+class VesselShapeDataset(torch.utils.data.Dataset):
+    """
+    A PyTorch Dataset for generating vessel shape images and corresponding binary masks.
+    Args:
+        vess_shape_generator: An object with a `generate_vess_shape()` method that returns (img_blend, mask_bin, metadata).
+        n_samples (int, optional): Number of samples in the dataset. Default is 10.
+        gray_scale (bool, optional): If True, images are converted to grayscale. Default is False.
+    Methods:
+        __len__():
+            Returns the number of samples in the dataset.
+        __getitem__(idx):
+            Generates a vessel shape image and its binary mask.
+            Args:
+                idx (int): Index of the sample (not used, as samples are generated on the fly).
+            Returns:
+                img_blend (Tensor): The vessel image as a torch.FloatTensor, shape [1, H, W] if gray_scale else [3, H, W], normalized to [0, 1].
+                mask_bin (Tensor): The binary mask as a torch.FloatTensor, shape [1, H, W], values in {0, 1}.
+                metadata (Any): Additional metadata returned by the generator.
+    """
+
+    def __init__(self, vess_shape_generator, n_samples=10, gray_scale=False):
+        self.vess_shape_generator = vess_shape_generator
+        self.n_samples = n_samples
+        self.gray_scale = gray_scale
+        
+    def __len__(self):
+        return self.n_samples
+    
+    def __getitem__(self, idx):
+        img_blend, mask_bin, metadata = self.vess_shape_generator.generate_vess_shape()
+
+        if self.gray_scale:
+            # Convert to grayscale and normalize
+            img_pil = Image.fromarray(img_blend)
+            img_pil = img_pil.convert("L")
+            img_blend = np.array(img_pil)
+            img_blend = torch.from_numpy(img_blend).unsqueeze(0).float() / 255.0  # [1, H, W]
+        else:
+            img_blend = torch.from_numpy(np.array(img_blend)).permute(2, 0, 1).float() / 255.0  # [3, H, W]
+
+        mask_bin = torch.from_numpy(mask_bin).unsqueeze(0).float() / 255.0  # [1, H, W]
+        mask_bin = (mask_bin > 0).float() # Convert to binary mask [0, 1]
+
+
+        return img_blend, mask_bin, metadata
