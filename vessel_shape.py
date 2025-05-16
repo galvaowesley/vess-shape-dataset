@@ -2,46 +2,99 @@ import os
 import random
 import numpy as np
 from PIL import Image
-from tqdm import tqdm
 import pandas as pd
 from scipy.ndimage import gaussian_filter
 from vessel_geometry import VesselGeometry
 import torch
 
-# Set seed for reproducibility
-np.random.seed(42)
+# Mean and std for normalization
+MEAN_GRAY = torch.tensor([0.47744867]).reshape(1, 1, 1)
+STD_GRAY = torch.tensor([0.24919957]).reshape(1, 1, 1)
+MEAN_RGB = torch.tensor([0.49828297, 0.47790086, 0.42099345]).reshape(3, 1, 1)
+STD_RGB = torch.tensor([0.2627286,  0.2536955,  0.27374935]).reshape(3, 1, 1)
+
+# --- Pixel proportion for mask classes ---"""
+# pixels class 0 (background): 0.1026
+# pixels class 1 (vessel): 0.8974
+
+def normalize_img(img, gray_scale=True):
+    """
+    Normalizes an input image tensor to have zero mean and unit variance.
+
+    Args:
+        img (torch.Tensor): The input image tensor. Expected to have pixel values in the range [0, 255].
+        gray_scale (bool, optional): If True, normalizes using grayscale mean and standard deviation (MEAN_GRAY, STD_GRAY).
+                                     If False, normalizes using RGB mean and standard deviation (MEAN_RGB, STD_RGB).
+                                     Defaults to True.
+
+    Returns:
+        torch.Tensor: The normalized image tensor.
+
+    Note:
+        The constants MEAN_GRAY, STD_GRAY, MEAN_RGB, and STD_RGB must be defined in the scope.
+    """
+
+    img = img.float() / 255.0
+    if gray_scale:
+        img = (img - MEAN_GRAY) / STD_GRAY
+    else:
+        img = (img - MEAN_RGB) / STD_RGB
+    return img
 
 
 class VesselShape:
+    """
+    VesselShape is a class for generating synthetic vessel-shaped images by blending foreground and background textures using procedurally generated vessel masks.
+
+    This class provides methods for:
+        - Randomly sampling vessel geometry parameters (number of control points, vessel diameter, radius, number of curves, etc.).
+        - Selecting and validating texture images for foreground and background, optionally using metadata to ensure label diversity.
+        - Randomly cropping texture images to a specified size.
+        - Validating image dimensions and sizes to ensure compatibility.
+        - Blending textures using a binary vessel mask and Gaussian smoothing.
+        - Generating vessel masks using a VesselGeometry object.
+        - Producing metadata about the textures and vessel geometry used for each generated image.
+
+    Attributes:
+        n_control_points (tuple or int): Range or fixed value for the number of control points in the vessel geometry.
+        max_vd (tuple or float): Range or fixed value for the maximum vessel diameter.
+        radius (tuple or int): Range or fixed value for the vessel radius.
+        num_curves (tuple or int): Range or fixed value for the number of vessel curves.
+        image_size (int): Size of the generated vessel mask image.
+        extra_space (int): Additional space around the vessel mask.
+        crop_size (tuple): Size of the cropped region from texture images.
+        texture_dir (str): Directory containing texture images.
+        annotation_csv (str): Path to CSV file with texture metadata (image_id, label_id).
+        sigma (tuple or float): Range or fixed value for Gaussian smoothing sigma.
+        texture_metadata (pd.DataFrame or None): Loaded metadata from annotation_csv.
+        texture_files (list): List of available texture image filenames.
+
+    Methods:
+        random_crop(img, crop_size): Randomly crops a region from the input image.
+        validate_image_dimensions(img, target_channels): Ensures the image has the specified number of channels.
+        validate_image_size(foreground_texture, background_texture, crop_size): Checks if both textures are large enough for cropping.
+        select_textures(): Randomly selects two distinct texture images, ensuring label diversity if metadata is provided.
+        blend(foreground, background, mask, sigma): Blends foreground and background images using a mask and Gaussian smoothing.
+        _sample_param(param, is_int): Samples a parameter value from a tuple or returns the fixed value.
+        generate_vess_shape(build_grid): Generates a synthetic vessel image, mask, metadata, and optionally a visualization grid.
+
+    Example:
+        vessel_shape = VesselShape(texture_dir='textures', annotation_csv='metadata.csv')
+        img, mask, metadata = vessel_shape.generate_vess_shape()
+    """
     def __init__(
         self,
         image_size=256,
-        n_control_points=3,
-        max_vd=30,
-        radius=3,
-        num_curves=1,
+        n_control_points=(2, 15),
+        max_vd=(50.0, 150.0),
+        radius=(1, 4),
+        num_curves=(1, 15),
         extra_space=32,
-        sigma=1.0,
+        sigma=(1, 2),
         texture_dir=None,
         annotation_csv=None,
         crop_size=(256, 256)
     ):
-        """
-        Initialize the VesselShape dataset generator.
-
-        Args:
-            image_size (int): Size of the generated image (height and width).
-            n_control_points (int): Number of control points for the vessel geometry.
-            max_vd (int): Maximum vessel diameter.
-            radius (int): Vessel radius.
-            num_curves (int): Number of vessel curves per image.
-            extra_space (int): Extra space around the vessel.
-            texture_dir (str): Directory containing texture images.
-            annotation_csv (str): Path to the CSV file with texture annotations.
-            crop_size (tuple): Size of the crop to be applied to textures.
-            n_samples (int): Number of samples in the dataset.
-            sigma (float): Sigma value for Gaussian smoothing of the mask.
-        """
         self.n_control_points = n_control_points
         self.max_vd = max_vd
         self.radius = radius
@@ -53,28 +106,25 @@ class VesselShape:
         self.annotation_csv = annotation_csv
         self.sigma = sigma
         self.texture_metadata = None
-        
-        
-        
         if annotation_csv is not None:
             self.texture_metadata = pd.read_csv(annotation_csv)
         self.texture_files = [
             f for f in os.listdir(texture_dir) if f.lower().endswith(".jpeg")
         ]
-        
+
     def random_crop(self, img, crop_size=(256, 256)):
         """
-        Perform a random crop on the input image.
+        Randomly crops a region from the input image of the specified size.
 
-        Args:
-            img (np.ndarray): Input image to be cropped.
-            crop_size (tuple): Desired crop size (height, width).
+        Parameters:
+            img (numpy.ndarray): Input image to be cropped.
+            crop_size (tuple of int, optional): Size of the crop (height, width). Defaults to (256, 256).
 
         Returns:
-            np.ndarray: Cropped image.
+            numpy.ndarray: Cropped image region of the specified size.
 
         Raises:
-            ValueError: If the image is smaller than the crop size.
+            ValueError: If the input image is smaller than the desired crop size.
         """
         img_height, img_width = img.shape[:2]
         if img_height < crop_size[0] or img_width < crop_size[1]:
@@ -85,17 +135,20 @@ class VesselShape:
 
     def validate_image_dimensions(self, img, target_channels=3):
         """
-        Ensure the image has the required number of channels.
+        Ensures that the input image has the specified number of channels.
+
+        If the input image is grayscale (2D), it expands the dimensions and repeats the channel to match the target number of channels.
+        If the image already has channels but does not match the target, raises a ValueError.
 
         Args:
-            img (np.ndarray): Input image.
-            target_channels (int): Number of channels required.
+            img (np.ndarray): Input image array.
+            target_channels (int, optional): Desired number of channels. Defaults to 3.
 
         Returns:
-            np.ndarray: Image with the correct number of channels.
+            np.ndarray: Image array with the correct number of channels.
 
         Raises:
-            ValueError: If the image cannot be converted to the required number of channels.
+            ValueError: If the image has a different number of channels than target_channels and is not grayscale.
         """
         if len(img.shape) == 2:
             img = np.expand_dims(img, axis=-1)
@@ -108,15 +161,15 @@ class VesselShape:
 
     def validate_image_size(self, foreground_texture, background_texture, crop_size):
         """
-        Check if both foreground and background textures are large enough for cropping.
+        Checks if both the foreground and background textures are at least as large as the specified crop size.
 
         Args:
-            foreground_texture (np.ndarray): Foreground texture image.
-            background_texture (np.ndarray): Background texture image.
-            crop_size (tuple): Desired crop size (height, width).
+            foreground_texture (np.ndarray): The foreground image as a NumPy array.
+            background_texture (np.ndarray): The background image as a NumPy array.
+            crop_size (tuple): The desired crop size as a tuple (height, width).
 
         Returns:
-            bool: True if both textures are large enough, False otherwise.
+            bool: True if both textures are at least as large as crop_size in both dimensions, False otherwise.
         """
         if (
             foreground_texture.shape[0] >= crop_size[0]
@@ -130,12 +183,20 @@ class VesselShape:
 
     def select_textures(self):
         """
-        Randomly select two different texture images (foreground and background).
-        Ensures they are from different classes if annotation is available and
-        that both are large enough for cropping.
+        Randomly selects two distinct texture images (foreground and background) from the available texture files,
+        ensuring that they have different labels if texture metadata is provided. The method continues sampling
+        until it finds a valid pair of images that meet the following criteria:
+            - The images are not the same file.
+            - If texture metadata is available, the images have different label IDs.
+            - Both images exist in the metadata (if provided).
+            - The images pass the size validation check via `self.validate_image_size`.
 
         Returns:
-            tuple: (foreground_image, background_image, foreground_filename, background_filename)
+            tuple: A tuple containing:
+                - fg_img (np.ndarray): The selected foreground image as a NumPy array.
+                - bg_img (np.ndarray): The selected background image as a NumPy array.
+                - fg_file (str): The filename of the foreground image.
+                - bg_file (str): The filename of the background image.
         """
         while True:
             fg_file = random.choice(self.texture_files)
@@ -160,16 +221,16 @@ class VesselShape:
 
     def blend(self, foreground, background, mask, sigma=1):
         """
-        Blend the foreground and background images using the provided mask.
+        Blends a foreground image onto a background image using a mask and Gaussian smoothing.
 
         Args:
-            foreground (np.ndarray): Foreground image.
-            background (np.ndarray): Background image.
-            mask (np.ndarray): Binary mask for blending.
-            sigma (float): Sigma value for Gaussian smoothing of the mask.
+            foreground (np.ndarray): The foreground image array.
+            background (np.ndarray): The background image array.
+            mask (np.ndarray): A binary or grayscale mask indicating the blending region.
+            sigma (float, optional): Standard deviation for Gaussian kernel used to smooth the mask. Default is 1.
 
         Returns:
-            np.ndarray: Blended image.
+            np.ndarray: The blended image as an unsigned 8-bit integer array.
         """
         alpha_fore = gaussian_filter(mask.astype(float), sigma=sigma)
         if alpha_fore.max() > 0:
@@ -178,62 +239,57 @@ class VesselShape:
         img_blend = foreground * alpha_fore + background * (1 - alpha_fore)
         img_blend = img_blend.astype(np.uint8)
         return img_blend
-    
+
     def _sample_param(self, param, is_int=True):
         """
-        Sample a parameter value based on its type.
-        If the parameter is a tuple, it samples from a range defined by the tuple.
-        If the parameter is a single value, it returns that value.
-        
+        Samples a parameter value, either as an integer or a float, depending on the input.
+
+        If `param` is a tuple, returns a random value within the range specified by the tuple:
+            - Uses `np.random.randint` if `is_int` is True (default), returning an integer.
+            - Uses `np.random.uniform` if `is_int` is False, returning a float.
+        If `param` is not a tuple, returns `param` as is.
+
         Args:
-            param (int, float, tuple): Parameter to sample from.
-            is_int (bool): If True, samples an integer; otherwise, samples a float.
-        
+            param (Any or tuple): The parameter to sample from. If a tuple, should specify the range (min, max).
+            is_int (bool, optional): Whether to sample as an integer (True) or float (False). Defaults to True.
+
         Returns:
-            int, float: Sampled parameter value.
+            int, float, or Any: The sampled value or the original parameter if not a tuple.
         """
-        
         if isinstance(param, tuple):
             return np.random.randint(*param) if is_int else np.random.uniform(*param)
+        return param
 
-    
-    # Generation pipeline
     def generate_vess_shape(self, build_grid=False):
         """
-        Generate a synthetic image with vessel shapes, baground and foreground textures and its respective segmentation mask. In addition, it returns a dictionary with the parameters used to generate the image and metadata.
-        
+        Generates a synthetic vessel shape image by blending foreground and background textures using a procedurally generated vessel mask.
+
         Args:
-            build_grid (bool): If True, returns a grid with the blended image and the mask.
-        
+            build_grid (bool, optional): If True, returns a visualization grid containing the foreground crop, background crop, mask, and blended image. Defaults to False.
+
         Returns:
-            img_blend (np.ndarray): Blended image with vessel shapes.
-            mask_bin (np.ndarray): Binary mask of the vessel shapes.
-            metadata (dict): Dictionary with metadata about the generated image.
-            grid (np.ndarray): Grid with the blended image and the mask (if build_grid is True).
-        
+            tuple:
+                - img_blend (np.ndarray): The blended image with vessel shape.
+                - mask_bin (np.ndarray): Binary mask of the vessel shape.
+                - metadata (dict): Dictionary containing metadata about the textures and vessel geometry parameters.
+                - grid (np.ndarray, optional): Visualization grid (only if build_grid is True).
         """
-        
-        # Ramdomly generate parameters for the current sample
         n_control_points = self._sample_param(self.n_control_points, is_int=True)
         max_vd = self._sample_param(self.max_vd, is_int=False)
         radius = self._sample_param(self.radius, is_int=True)
         num_curves = self._sample_param(self.num_curves, is_int=True)
-        random_sigma = self._sample_param(self.sigma, is_int=False) # Random sigma for Gaussian smoothing
-            
+        random_sigma = self._sample_param(self.sigma, is_int=False)
         self.vessel_geometry = VesselGeometry(
             self.image_size, n_control_points, max_vd, radius, num_curves, self.extra_space
         )
-        
-        mask = self.vessel_geometry.create_curves() # TODO: Passar os parâmetros ao invés de usar os padrões
+        mask = self.vessel_geometry.create_curves()
         fg_img, bg_img, fg_file, bg_file = self.select_textures()
         fg_img = self.validate_image_dimensions(fg_img)
         bg_img = self.validate_image_dimensions(bg_img)
         fg_crop = self.random_crop(fg_img, self.crop_size)
         bg_crop = self.random_crop(bg_img, self.crop_size)
         mask_bin = (mask > 0).astype(np.uint8)
-        
         img_blend = self.blend(fg_crop, bg_crop, mask_bin, sigma=random_sigma)
-        
         metadata = {
             "foreground_texture": fg_file,
             "background_texture": bg_file,
@@ -245,9 +301,7 @@ class VesselShape:
                 "num_curves": num_curves,
             },
         }
-        
         if build_grid:
-            # Create a grid for visualization
             grid = np.hstack(
                 (
                     fg_crop,
@@ -259,50 +313,53 @@ class VesselShape:
             return img_blend, mask_bin, metadata, grid
         else:
             return img_blend, mask_bin, metadata
-        
-        
+
+
 class VesselShapeDataset(torch.utils.data.Dataset):
     """
-    A PyTorch Dataset for generating vessel shape images and corresponding binary masks.
+    A PyTorch Dataset for generating vessel shape images and corresponding masks.
+
+    This dataset uses a vessel shape generator to produce synthetic vessel images, binary masks, and associated metadata.
+    It supports grayscale or RGB images, and optional normalization.
+
     Args:
         vess_shape_generator: An object with a `generate_vess_shape()` method that returns (img_blend, mask_bin, metadata).
         n_samples (int, optional): Number of samples in the dataset. Default is 10.
-        gray_scale (bool, optional): If True, images are converted to grayscale. Default is False.
+        gray_scale (bool, optional): If True, images are converted to grayscale. If False, images are RGB. Default is True.
+        normalize (bool, optional): If True, images are normalized using `normalize_img`. Default is True.
+
     Methods:
-        __len__():
-            Returns the number of samples in the dataset.
-        __getitem__(idx):
-            Generates a vessel shape image and its binary mask.
-            Args:
-                idx (int): Index of the sample (not used, as samples are generated on the fly).
-            Returns:
-                img_blend (Tensor): The vessel image as a torch.FloatTensor, shape [1, H, W] if gray_scale else [3, H, W], normalized to [0, 1].
-                mask_bin (Tensor): The binary mask as a torch.FloatTensor, shape [1, H, W], values in {0, 1}.
-                metadata (Any): Additional metadata returned by the generator.
+        __len__(): Returns the number of samples in the dataset.
+        __getitem__(idx): Generates and returns a tuple (img, mask, metadata) for the given index.
+            - img: torch.Tensor, shape [1,H,W] if grayscale or [3,H,W] if RGB, normalized if specified.
+            - mask: torch.LongTensor, shape [1,H,W], binary mask.
+            - metadata: Additional information returned by the generator.
     """
 
-    def __init__(self, vess_shape_generator, n_samples=10, gray_scale=False):
+    def __init__(self, vess_shape_generator, n_samples=10, gray_scale=True, normalize=True):
         self.vess_shape_generator = vess_shape_generator
         self.n_samples = n_samples
         self.gray_scale = gray_scale
-        
+        self.normalize = normalize
+
     def __len__(self):
         return self.n_samples
-    
+
     def __getitem__(self, idx):
         img_blend, mask_bin, metadata = self.vess_shape_generator.generate_vess_shape()
-
         if self.gray_scale:
-            # Convert to grayscale and normalize
-            img_pil = Image.fromarray(img_blend)
-            img_pil = img_pil.convert("L")
-            img_blend = np.array(img_pil)
-            img_blend = torch.from_numpy(img_blend).unsqueeze(0).float() / 255.0  # [1, H, W]
+            img_pil = Image.fromarray(img_blend).convert("L")
+            img = torch.from_numpy(np.array(img_pil)).unsqueeze(0)  # [1,H,W]
+            if self.normalize:
+                img = normalize_img(img, gray_scale=True)
+            else:
+                img = img.float() / 255.0
         else:
-            img_blend = torch.from_numpy(np.array(img_blend)).permute(2, 0, 1).float() / 255.0  # [3, H, W]
-
-        mask_bin = torch.from_numpy(mask_bin).unsqueeze(0).float() / 255.0  # [1, H, W]
-        mask_bin = (mask_bin > 0).float() # Convert to binary mask [0, 1]
-
-
-        return img_blend, mask_bin, metadata
+            img = torch.from_numpy(np.array(img_blend)).permute(2,0,1)  # [3,H,W]
+            if self.normalize:
+                img = normalize_img(img, gray_scale=False)
+            else:
+                img = img.float() / 255.0
+        mask = torch.from_numpy(mask_bin).long()  # [H,W]
+        mask = mask.unsqueeze(0)
+        return img, mask, metadata
