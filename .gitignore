@@ -1,0 +1,5 @@
+*.egg-info
+# DIrectory .idea
+.idea/
+conda-recipe
+__pycache__

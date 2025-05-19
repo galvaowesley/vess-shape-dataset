@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vess_shape_dataset"
+version = "0.1.0"
+description = "Generation of synthetic datasets of vessel shapes with for vessel blood segmentation."
+authors = [
+    { name="Wesley Galvão", email="wesleygalv@gmail.com" }
+]
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = [
+    "numpy==2.2.5",
+    "torch",
+    "pandas",
+    "matplotlib==3.10",
+    "scipy==1.15.0",
+    "Pillow",
+    "tqdm"
+]
+
+[project.urls]
+Homepage = "https://github.com/galvaowesley/vess-shape-dataset"
+Repository = "https://github.com/galvaowesley/vess-shape-dataset"
+
+[tool.setuptools]
+packages = ["vess_shape_dataset"]
+include-package-data = true

@@ -53,6 +53,39 @@ Install dependencies with:
 pip install -r requirements.txt
 ```
 
+## Instalação
+
+### Via pip (recomendado para desenvolvimento)
+```bash
+pip install -e .
+```
+
+### Via conda
+```bash
+conda install conda-build
+conda build conda-recipe
+conda install --use-local vess_shape_dataset
+```
+
+## Estrutura do Projeto
+
+- `vess_shape_dataset/`: Código principal do pacote (core).
+- `notebooks/`: Notebooks experimentais e exemplos de uso.
+- `example_imgs/`: Imagens de exemplo.
+- `imagenet_val_sample/`: Amostras de texturas e anotações.
+- `requirements.txt`: Dependências para ambiente Python.
+- `pyproject.toml`: Configuração para instalação via pip/setuptools.
+- `conda-recipe/meta.yaml`: Configuração para instalação via conda.
+
+## Uso
+
+Exemplo de importação:
+```python
+from vess_shape_dataset import VesselShape, VesselShapeDataset
+```
+
+Consulte os notebooks em `notebooks/` para exemplos completos.
+
 ## Dataset Preparation
 
 - Place your texture images (e.g., ImageNet samples) in a directory.
