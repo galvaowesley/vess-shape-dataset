@@ -1,5 +1,5 @@
-from .vessel_shape import VesselShape
-from .vessel_geometry import VesselGeometry
-from .dataset import VesselShapeDataset
+from .vessel_texture import VesselTexture
+from .vessel_curves import VesselGeometry
+from .vessel_dataset import VesselShapeDataset
 
-__all__ = ["VesselShape", "VesselGeometry", "VesselShapeDataset"]
+__all__ = ["VesselTexture", "VesselGeometry", "VesselShapeDataset"]
