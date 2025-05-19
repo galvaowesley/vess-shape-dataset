@@ -4,13 +4,13 @@ import numpy as np
 from PIL import Image
 import pandas as pd
 from scipy.ndimage import gaussian_filter
-from vessel_geometry import VesselGeometry
+from vessel_shape_dataset.vessel_curves import VesselGeometry
 
 
 
-class VesselShape:
+class VesselTexture:
     """
-    VesselShape is a class for generating synthetic vessel-shaped images by blending foreground and background textures using procedurally generated vessel masks.
+    VesselTexture is a class for generating synthetic vessel-shaped images by blending foreground and background textures using procedurally generated vessel masks.
 
     This class provides methods for:
         - Randomly sampling vessel geometry parameters (number of control points, vessel diameter, radius, number of curves, etc.).
@@ -45,7 +45,7 @@ class VesselShape:
         generate_vess_shape(build_grid): Generates a synthetic vessel image, mask, metadata, and optionally a visualization grid.
 
     Example:
-        vessel_shape = VesselShape(texture_dir='textures', annotation_csv='metadata.csv')
+        vessel_shape = VesselTexture(texture_dir='textures', annotation_csv='metadata.csv')
         img, mask, metadata = vessel_shape.generate_vess_shape()
     """
     def __init__(

@@ -1,4 +1,0 @@
-numpy>=2.2.5
-scipy>=1.15.0
-scikit-image>=0.25.0
-matplotlib>=3.10
