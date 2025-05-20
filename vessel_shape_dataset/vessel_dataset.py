@@ -47,9 +47,10 @@ class VesselShapeDataset(torch.utils.data.Dataset):
     Args:
         vess_shape_generator: An object with a `generate_vess_shape()` method that returns (img_blend, mask_bin, img_metadata).
         n_samples (int, optional): Number of samples in the dataset. Default is 10.
-        gray_scale (bool, optional): If True, images are converted to grayscale. If False, images are RGB. Default is True.
+        gray_scale (bool, optional): If True, images are converted to grayscale. If False, images are RGB. Default is True.        
         normalize (bool, optional): If True, images are normalized using `normalize_img`. Default is True.
         metadata (bool, optional): If True, returns metadata along with image and mask. Default is False.
+        mask_channels (int, optional): Number of channels in the mask. Default is 0.
 
     Methods:
         __len__(): Returns the number of samples in the dataset.
@@ -58,23 +59,55 @@ class VesselShapeDataset(torch.utils.data.Dataset):
     Returns:
         If metadata is False:
             img (Tensor): Image tensor of shape [1, H, W] (grayscale) or [3, H, W] (RGB), normalized if specified.
-            mask (Tensor): Binary mask tensor of shape [H, W].
+            mask (Tensor): Binary mask tensor of shape [H, W] if mask_channels is 0, or [C, H, W] if mask_channels is 1 or 3.
+            
         If metadata is True:
             img (Tensor): As above.
             mask (Tensor): As above.
             img_metadata: Metadata associated with the generated image.
+    
     """
 
 
-    def __init__(self, vess_shape_generator, n_samples=10, gray_scale=True, normalize=True, metadata=False):
+    def __init__(
+        self,
+        vess_shape_generator,
+        n_samples=10,
+        gray_scale=True,
+        normalize=True,
+        metadata=False,
+        mask_channels=0
+    ):
         self.vess_shape_generator = vess_shape_generator
         self.n_samples = n_samples
         self.gray_scale = gray_scale
         self.normalize = normalize
         self.metadata = metadata
+        self.mask_channels = mask_channels
 
     def __len__(self):
         return self.n_samples
+    
+    def __mask_channels(self, mask_channels, mask):
+        """
+        Adjusts the number of channels in the input mask tensor.
+
+        Args:
+            mask_channels (int): The desired number of channels for the mask. 
+                - If 0, returns the mask unchanged.
+                - If 1, adds a channel dimension to the mask.
+                - If 3, repeats the mask across three channels.
+            mask (torch.Tensor): The input mask tensor to be adjusted.
+
+        Returns:
+            torch.Tensor: The mask tensor with the specified number of channels.
+        """
+        if mask_channels == 0:
+            return mask
+        elif mask_channels == 1:
+            mask = mask.unsqueeze(0)
+        elif mask_channels == 3:
+            mask = mask.unsqueeze(0).repeat(3, 1, 1)
 
     def __getitem__(self, idx):
         img_blend, mask_bin, img_metadata = self.vess_shape_generator.generate_vess_shape()
@@ -91,8 +124,11 @@ class VesselShapeDataset(torch.utils.data.Dataset):
                 img = normalize_img(img, gray_scale=False)
             else:
                 img = img.float() / 255.0
+                
         mask = torch.from_numpy(mask_bin).long()  # [H,W]
-        # mask = mask.unsqueeze(0)
+        # Manage mask channels
+        mask = self.__mask_channels(self.mask_channels, mask)  
+        
         if self.metadata:
             return img, mask, img_metadata
         else:
