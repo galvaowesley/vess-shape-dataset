@@ -1,0 +1,101 @@
+image_id,label_id,label
+ILSVRC2012_val_00000001,n01751748,sea snake
+ILSVRC2012_val_00000002,n09193705,alp
+ILSVRC2012_val_00000003,n02105855,"Shetland sheepdog, Shetland sheep dog, Shetland"
+ILSVRC2012_val_00000004,n04263257,soup bowl
+ILSVRC2012_val_00000005,n03125729,cradle
+ILSVRC2012_val_00000006,n01735189,"garter snake, grass snake"
+ILSVRC2012_val_00000007,n02346627,"porcupine, hedgehog"
+ILSVRC2012_val_00000008,n02776631,"bakery, bakeshop, bakehouse"
+ILSVRC2012_val_00000009,n03794056,mousetrap
+ILSVRC2012_val_00000010,n02328150,"Angora, Angora rabbit"
+ILSVRC2012_val_00000011,n01917289,brain coral
+ILSVRC2012_val_00000012,n02125311,"cougar, puma, catamount, mountain lion, painter, panther, Felis concolor"
+ILSVRC2012_val_00000013,n02484975,"guenon, guenon monkey"
+ILSVRC2012_val_00000014,n04065272,"recreational vehicle, RV, R.V."
+ILSVRC2012_val_00000015,n03496892,"harvester, reaper"
+ILSVRC2012_val_00000016,n02066245,"grey whale, gray whale, devilfish, Eschrichtius gibbosus, Eschrichtius robustus"
+ILSVRC2012_val_00000017,n01914609,"sea anemone, anemone"
+ILSVRC2012_val_00000018,n01616318,vulture
+ILSVRC2012_val_00000019,n02971356,carton
+ILSVRC2012_val_00000020,n03126707,crane
+ILSVRC2012_val_00000021,n02346627,"porcupine, hedgehog"
+ILSVRC2012_val_00000022,n02091244,"Ibizan hound, Ibizan Podenco"
+ILSVRC2012_val_00000023,n07742313,Granny Smith
+ILSVRC2012_val_00000024,n03956157,planetarium
+ILSVRC2012_val_00000025,n01616318,vulture
+ILSVRC2012_val_00000026,n04380533,table lamp
+ILSVRC2012_val_00000027,n02114548,"white wolf, Arctic wolf, Canis lupus tundrarum"
+ILSVRC2012_val_00000028,n02089973,English foxhound
+ILSVRC2012_val_00000029,n01729977,"green snake, grass snake"
+ILSVRC2012_val_00000030,n04435653,tile roof
+ILSVRC2012_val_00000031,n02280649,cabbage butterfly
+ILSVRC2012_val_00000032,n03444034,go-kart
+ILSVRC2012_val_00000033,n02077923,sea lion
+ILSVRC2012_val_00000034,n09835506,"ballplayer, baseball player"
+ILSVRC2012_val_00000035,n03478589,half track
+ILSVRC2012_val_00000036,n04532106,vestment
+ILSVRC2012_val_00000037,n01644900,"tailed frog, bell toad, ribbed toad, tailed toad, Ascaphus trui"
+ILSVRC2012_val_00000038,n02666196,abacus
+ILSVRC2012_val_00000039,n04141327,scabbard
+ILSVRC2012_val_00000040,n01773797,"garden spider, Aranea diademata"
+ILSVRC2012_val_00000041,n03125729,cradle
+ILSVRC2012_val_00000042,n04049303,rain barrel
+ILSVRC2012_val_00000043,n02006656,spoonbill
+ILSVRC2012_val_00000044,n02097209,standard schnauzer
+ILSVRC2012_val_00000045,n02111277,"Newfoundland, Newfoundland dog"
+ILSVRC2012_val_00000046,n03950228,"pitcher, ewer"
+ILSVRC2012_val_00000047,n03393912,freight car
+ILSVRC2012_val_00000048,n02089973,English foxhound
+ILSVRC2012_val_00000049,n03930630,"pickup, pickup truck"
+ILSVRC2012_val_00000050,n02640242,sturgeon
+ILSVRC2012_val_00000051,n01828970,bee eater
+ILSVRC2012_val_00000052,n01632777,"axolotl, mud puppy, Ambystoma mexicanum"
+ILSVRC2012_val_00000053,n04372370,"switch, electric switch, electrical switch"
+ILSVRC2012_val_00000054,n03485794,"handkerchief, hankie, hanky, hankey"
+ILSVRC2012_val_00000055,n02443114,"polecat, fitch, foulmart, foumart, Mustela putorius"
+ILSVRC2012_val_00000056,n02930766,"cab, hack, taxi, taxicab"
+ILSVRC2012_val_00000057,n02112018,Pomeranian
+ILSVRC2012_val_00000058,n13040303,"stinkhorn, carrion fungus"
+ILSVRC2012_val_00000059,n04485082,tripod
+ILSVRC2012_val_00000060,n03482405,hamper
+ILSVRC2012_val_00000061,n02963159,cardigan
+ILSVRC2012_val_00000062,n02093859,Kerry blue terrier
+ILSVRC2012_val_00000063,n01910747,jellyfish
+ILSVRC2012_val_00000064,n01693334,"green lizard, Lacerta viridis"
+ILSVRC2012_val_00000065,n04371430,"swimming trunks, bathing trunks"
+ILSVRC2012_val_00000066,n02526121,eel
+ILSVRC2012_val_00000067,n01871265,tusker
+ILSVRC2012_val_00000068,n04532106,vestment
+ILSVRC2012_val_00000069,n04482393,"tricycle, trike, velocipede"
+ILSVRC2012_val_00000070,n04370456,sweatshirt
+ILSVRC2012_val_00000071,n02927161,"butcher shop, meat market"
+ILSVRC2012_val_00000072,n02074367,"dugong, Dugong dugon"
+ILSVRC2012_val_00000073,n01608432,kite
+ILSVRC2012_val_00000074,n02966193,"carousel, carrousel, merry-go-round, roundabout, whirligig"
+ILSVRC2012_val_00000075,n01795545,black grouse
+ILSVRC2012_val_00000076,n02791270,barbershop
+ILSVRC2012_val_00000077,n02087394,Rhodesian ridgeback
+ILSVRC2012_val_00000078,n02116738,"African hunting dog, hyena dog, Cape hunting dog, Lycaon pictus"
+ILSVRC2012_val_00000079,n02091635,"otterhound, otter hound"
+ILSVRC2012_val_00000080,n02895154,"breastplate, aegis, egis"
+ILSVRC2012_val_00000081,n09193705,alp
+ILSVRC2012_val_00000082,n02088094,"Afghan hound, Afghan"
+ILSVRC2012_val_00000083,n04200800,"shoe shop, shoe-shop, shoe store"
+ILSVRC2012_val_00000084,n01737021,water snake
+ILSVRC2012_val_00000085,n02974003,car wheel
+ILSVRC2012_val_00000086,n03032252,"cinema, movie theater, movie theatre, movie house, picture palace"
+ILSVRC2012_val_00000087,n02483708,"siamang, Hylobates syndactylus, Symphalangus syndactylus"
+ILSVRC2012_val_00000088,n01632458,"spotted salamander, Ambystoma maculatum"
+ILSVRC2012_val_00000089,n02992529,"cellular telephone, cellular phone, cellphone, cell, mobile phone"
+ILSVRC2012_val_00000090,n01698640,"American alligator, Alligator mississipiensis"
+ILSVRC2012_val_00000091,n02114548,"white wolf, Arctic wolf, Canis lupus tundrarum"
+ILSVRC2012_val_00000092,n02497673,"Madagascar cat, ring-tailed lemur, Lemur catta"
+ILSVRC2012_val_00000093,n02480855,"gorilla, Gorilla gorilla"
+ILSVRC2012_val_00000094,n04147183,schooner
+ILSVRC2012_val_00000095,n02487347,macaque
+ILSVRC2012_val_00000096,n03895866,"passenger car, coach, carriage"
+ILSVRC2012_val_00000097,n02325366,"wood rabbit, cottontail, cottontail rabbit"
+ILSVRC2012_val_00000098,n02033041,dowitcher
+ILSVRC2012_val_00000099,n07745940,strawberry
+ILSVRC2012_val_00000100,n02415577,"bighorn, bighorn sheep, cimarron, Rocky Mountain bighorn, Rocky Mountain sheep, Ovis canadensis"
