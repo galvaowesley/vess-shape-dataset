@@ -120,9 +120,13 @@ class VesselTexture:
             img = np.expand_dims(img, axis=-1)
             img = np.repeat(img, target_channels, axis=-1)
         elif img.shape[2] != target_channels:
-            raise ValueError(
-                f"Image has {img.shape[2]} channels, but {target_channels} channels are required."
-            )
+            # If RGBA, convert to RGB
+            if img.shape[2] == 4 and target_channels == 3:
+                img = img[..., :3]
+            else:
+                raise ValueError(
+                    f"Image has {img.shape[2]} channels, but {target_channels} channels are required."
+                )
         return img
 
     def validate_image_size(self, foreground_texture, background_texture, crop_size):
